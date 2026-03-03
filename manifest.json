@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Chess.com -> Lichess One-Click Import",
+  "description": "Import your latest Chess.com game into Lichess analysis in one click.",
+  "version": "1.0.0",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://api.chess.com/*",
+    "https://lichess.org/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Import latest game",
+    "default_popup": "popup.html"
+  }
+}

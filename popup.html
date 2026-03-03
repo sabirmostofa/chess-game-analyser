@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import latest game</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Chess.com -> Lichess</h1>
+
+      <label for="username">Chess.com username</label>
+      <input id="username" type="text" autocomplete="off" placeholder="your_username" />
+
+      <button id="importBtn" type="button">Import latest game</button>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
