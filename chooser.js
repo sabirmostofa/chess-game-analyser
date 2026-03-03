@@ -6,6 +6,20 @@ const query = new URLSearchParams(window.location.search);
 
 let cachedGames = [];
 
+function getTargetWindowId() {
+  const raw = query.get("targetWindowId");
+  if (raw === null) {
+    return null;
+  }
+
+  const parsed = Number(raw);
+  if (Number.isInteger(parsed) && parsed >= 0) {
+    return parsed;
+  }
+
+  return null;
+}
+
 function setStatus(message, kind = "") {
   statusEl.textContent = message;
   statusEl.className = `status ${kind}`.trim();
@@ -85,7 +99,9 @@ async function onGameClick(event) {
 
   const result = await sendMessage({
     type: "import-selected-game",
-    pgn: game.pgn
+    pgn: game.pgn,
+    playerColor: String(game.color || "").toLowerCase(),
+    targetWindowId: getTargetWindowId()
   });
 
   if (!result?.ok) {

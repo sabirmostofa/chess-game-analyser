@@ -6,10 +6,13 @@ Import Chess.com games to Lichess analysis in one click.
 
 - One-click import from the extension icon.
 - Optional manual mode: choose from your last 10 games.
+- Manual selection mode toggle auto-saves when changed.
 - Username validation against Chess.com when saving settings.
 - Preserves username letter case and removes whitespace.
 - Uses Lichess import flow and opens analysis for the imported game.
+- Auto-opens black games with black board orientation on Lichess.
 - Fallback to direct compact PGN analysis URL if form import fails.
+- Opens imported game tabs in the same browser window context when possible.
 
 ## Install (local)
 
@@ -29,7 +32,7 @@ Import Chess.com games to Lichess analysis in one click.
 1. Open extension settings:
    `chrome://extensions` -> this extension -> **Extension options**.
 2. Enter your Chess.com username.
-3. Click **Save username**.
+3. Click **Save settings**.
 4. (Optional) Enable **Manual selection mode (choose from last 10 games)**.
 
 ## How to use
@@ -52,9 +55,14 @@ The username popup appears only when:
 
 - Uses Chess.com public API: `https://api.chess.com/pub/player/{username}/games/archives`
 - Primary import path: `https://lichess.org/paste` -> `/import`
-- Successful import opens: `https://lichess.org/<game-id>#analysis`
+- Successful import opens white/default: `https://lichess.org/<game-id>`
+- Successful import opens black: `https://lichess.org/<game-id>/black`
 - Fallback import path: `https://lichess.org/analysis/pgn/<compact-pgn>`
 - Only publicly available Chess.com games can be imported
+
+## Troubleshooting
+
+- If the Lichess board does not load correctly, refresh the page or press `F5`.
 
 ## Chrome Web Store files
 

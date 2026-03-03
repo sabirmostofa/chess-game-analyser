@@ -4,6 +4,20 @@ const statusEl = document.getElementById("status");
 const settingsBtn = document.getElementById("settingsBtn");
 const query = new URLSearchParams(window.location.search);
 
+function getTargetWindowId() {
+  const raw = query.get("targetWindowId");
+  if (raw === null) {
+    return null;
+  }
+
+  const parsed = Number(raw);
+  if (Number.isInteger(parsed) && parsed >= 0) {
+    return parsed;
+  }
+
+  return null;
+}
+
 function setStatus(message, kind = "") {
   statusEl.textContent = message;
   statusEl.className = kind;
@@ -42,11 +56,13 @@ function applyLaunchReasonMessage() {
 }
 
 function sendImportRequest(username) {
+  const targetWindowId = getTargetWindowId();
   return new Promise((resolve) => {
     chrome.runtime.sendMessage(
       {
         type: "import-latest-game",
-        username
+        username,
+        targetWindowId
       },
       (response) => {
         const runtimeError = chrome.runtime.lastError;

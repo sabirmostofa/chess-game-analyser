@@ -22,6 +22,41 @@ function normalizeForCompare(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeWindowId(value) {
+  const parsed = Number(value);
+  if (Number.isInteger(parsed) && parsed >= 0) {
+    return parsed;
+  }
+  return null;
+}
+
+function normalizePlayerColor(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "white" || normalized === "black") {
+    return normalized;
+  }
+  return null;
+}
+
+function resolvePlayerColorFromGame(game, username) {
+  const normalizedUser = normalizeForCompare(username);
+  if (!normalizedUser) {
+    return null;
+  }
+
+  const whiteUser = normalizeForCompare(game?.white?.username);
+  if (normalizedUser === whiteUser) {
+    return "white";
+  }
+
+  const blackUser = normalizeForCompare(game?.black?.username);
+  if (normalizedUser === blackUser) {
+    return "black";
+  }
+
+  return null;
+}
+
 function summarizeGameForChooser(game, username) {
   const normalizedUser = normalizeForCompare(username);
   const whiteUser = normalizeForCompare(game?.white?.username);
@@ -166,8 +201,10 @@ function extractImportedGameId(url) {
   return null;
 }
 
-function buildAnalysisUrl(gameId) {
-  return `https://lichess.org/${encodeURIComponent(gameId)}#analysis`;
+function buildImportedGameAnalysisUrl(gameId, playerColor = null) {
+  const color = normalizePlayerColor(playerColor);
+  const colorSegment = color === "black" ? "/black" : "";
+  return `https://lichess.org/${encodeURIComponent(gameId)}${colorSegment}`;
 }
 
 function buildCompactAnalysisPgn(pgn) {
@@ -183,18 +220,158 @@ function buildCompactAnalysisPgn(pgn) {
     .trim();
 }
 
-function tryBuildDirectAnalysisUrl(pgn) {
+function tryBuildDirectAnalysisUrl(pgn, playerColor = null) {
   const compact = buildCompactAnalysisPgn(pgn);
   if (!compact) {
     return null;
   }
 
-  const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(compact)}`;
+  const color = normalizePlayerColor(playerColor);
+  const colorQuery = color === "black" ? "?color=black" : "";
+  const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(compact)}${colorQuery}`;
   if (url.length > MAX_DIRECT_ANALYSIS_URL_LENGTH) {
     return null;
   }
 
   return url;
+}
+
+async function createTabInTargetWindow(url, targetWindowId = null) {
+  const normalizedWindowId = normalizeWindowId(targetWindowId);
+  if (normalizedWindowId !== null) {
+    try {
+      return await chrome.tabs.create({ url, windowId: normalizedWindowId });
+    } catch {
+      // Fallback if the target window no longer exists.
+    }
+  }
+
+  return chrome.tabs.create({ url });
+}
+
+async function ensureBoardRenderedOrReloadOnce(tabId) {
+  if (typeof tabId !== "number") {
+    return;
+  }
+
+  try {
+    await waitForTabComplete(tabId, 20000);
+  } catch {
+    // Continue to best-effort DOM checks even if complete event timing was missed.
+  }
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: async () => {
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+        function injectBoardBackgroundFallback() {
+          if (document.getElementById("lichess-importer-board-fallback-style")) {
+            return;
+          }
+
+          const style = document.createElement("style");
+          style.id = "lichess-importer-board-fallback-style";
+          style.textContent = `
+            .is2d cg-board {
+              background-color: #b58863 !important;
+              background-image: conic-gradient(
+                #f0d9b5 90deg,
+                #b58863 0 180deg,
+                #f0d9b5 0 270deg,
+                #b58863 0
+              ) !important;
+              background-size: 25% 25% !important;
+              background-position: 0 0 !important;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
+        function boardHasGeometryAndPieces() {
+          const board = document.querySelector("cg-board");
+          const wrap = document.querySelector(".main-board .cg-wrap");
+          if (!(board instanceof HTMLElement) || !(wrap instanceof HTMLElement)) {
+            return false;
+          }
+
+          const boardRect = board.getBoundingClientRect();
+          const wrapRect = wrap.getBoundingClientRect();
+          if (boardRect.width < 40 || boardRect.height < 40 || wrapRect.width < 40 || wrapRect.height < 40) {
+            return false;
+          }
+
+          const pieceCount = board.querySelectorAll("piece").length;
+          return pieceCount > 0;
+        }
+
+        injectBoardBackgroundFallback();
+
+        const deadline = Date.now() + 6000;
+        while (Date.now() < deadline) {
+          if (boardHasGeometryAndPieces()) {
+            return;
+          }
+          await sleep(250);
+        }
+
+        // Prevent reload loops: one auto-reload attempt per URL path+query per tab session.
+        const key = `lichessImporterReloaded:${location.pathname}${location.search}`;
+        if (sessionStorage.getItem(key) === "1") {
+          return;
+        }
+
+        sessionStorage.setItem(key, "1");
+        location.reload();
+      }
+    });
+  } catch {
+    // Best effort only; import should still complete.
+  }
+}
+
+async function resolveTargetBrowserWindowId(preferredWindowId = null, fallbackWindowId = null) {
+  const preferred = normalizeWindowId(preferredWindowId);
+  if (preferred !== null) {
+    try {
+      const win = await chrome.windows.get(preferred);
+      if (win?.type === "normal") {
+        return preferred;
+      }
+    } catch {
+      // Ignore stale/missing windows and continue resolving.
+    }
+  }
+
+  const fallback = normalizeWindowId(fallbackWindowId);
+  if (fallback !== null) {
+    try {
+      const win = await chrome.windows.get(fallback);
+      if (win?.type === "normal") {
+        return fallback;
+      }
+    } catch {
+      // Ignore stale/missing windows and continue resolving.
+    }
+  }
+
+  try {
+    const windows = await chrome.windows.getAll();
+    const focusedNormal = windows.find((win) => win.type === "normal" && win.focused);
+    if (focusedNormal?.id !== undefined) {
+      return focusedNormal.id;
+    }
+
+    const anyNormal = windows.find((win) => win.type === "normal");
+    if (anyNormal?.id !== undefined) {
+      return anyNormal.id;
+    }
+  } catch {
+    // If querying windows fails, fall back to default tab creation behavior.
+  }
+
+  return null;
 }
 
 async function waitForTabComplete(tabId, timeoutMs = 15000) {
@@ -243,8 +420,8 @@ async function waitForTabComplete(tabId, timeoutMs = 15000) {
   });
 }
 
-async function submitPgnViaPasteForm(pgn) {
-  const tab = await chrome.tabs.create({ url: LICHESS_PASTE_URL });
+async function submitPgnViaPasteForm(pgn, playerColor = null, targetWindowId = null) {
+  const tab = await createTabInTargetWindow(LICHESS_PASTE_URL, targetWindowId);
   const tabId = tab?.id;
   if (typeof tabId !== "number") {
     throw new Error("Could not open Lichess paste page.");
@@ -315,25 +492,29 @@ async function submitPgnViaPasteForm(pgn) {
     );
   }
 
-  const analysisUrl = buildAnalysisUrl(gameId);
+  const analysisUrl = buildImportedGameAnalysisUrl(gameId, playerColor);
   await chrome.tabs.update(tabId, { url: analysisUrl });
+  if (normalizePlayerColor(playerColor) === "black") {
+    await ensureBoardRenderedOrReloadOnce(tabId);
+  }
   return analysisUrl;
 }
 
-async function importLatestGameByUsername(rawUsername) {
+async function importLatestGameByUsername(rawUsername, targetWindowId = null) {
   const username = normalizeUsername(rawUsername);
   if (!username) {
     throw new Error("Enter your Chess.com username.");
   }
 
   const latestGame = await getMostRecentGame(username);
+  const playerColor = resolvePlayerColorFromGame(latestGame, username);
   await chrome.storage.local.set({ chessComUsername: username });
 
-  const directUrl = tryBuildDirectAnalysisUrl(latestGame.pgn);
+  const directUrl = tryBuildDirectAnalysisUrl(latestGame.pgn, playerColor);
   let lichessUrl;
   let method;
   try {
-    lichessUrl = await submitPgnViaPasteForm(latestGame.pgn);
+    lichessUrl = await submitPgnViaPasteForm(latestGame.pgn, playerColor, targetWindowId);
     method = "paste-form-import";
   } catch (pasteError) {
     if (!directUrl) {
@@ -342,7 +523,10 @@ async function importLatestGameByUsername(rawUsername) {
 
     lichessUrl = directUrl;
     method = "direct-analysis-pgn";
-    await chrome.tabs.create({ url: lichessUrl });
+    const tab = await createTabInTargetWindow(lichessUrl, targetWindowId);
+    if (normalizePlayerColor(playerColor) === "black") {
+      await ensureBoardRenderedOrReloadOnce(tab?.id);
+    }
   }
 
   return {
@@ -354,16 +538,17 @@ async function importLatestGameByUsername(rawUsername) {
   };
 }
 
-async function importSpecificGamePgn(pgn) {
+async function importSpecificGamePgn(pgn, playerColor = null, targetWindowId = null) {
   if (!pgn) {
     throw new Error("Selected game has no PGN.");
   }
 
-  const directUrl = tryBuildDirectAnalysisUrl(pgn);
+  const normalizedColor = normalizePlayerColor(playerColor);
+  const directUrl = tryBuildDirectAnalysisUrl(pgn, normalizedColor);
   let lichessUrl;
   let method;
   try {
-    lichessUrl = await submitPgnViaPasteForm(pgn);
+    lichessUrl = await submitPgnViaPasteForm(pgn, normalizedColor, targetWindowId);
     method = "paste-form-import";
   } catch (pasteError) {
     if (!directUrl) {
@@ -372,7 +557,10 @@ async function importSpecificGamePgn(pgn) {
 
     lichessUrl = directUrl;
     method = "direct-analysis-pgn";
-    await chrome.tabs.create({ url: lichessUrl });
+    const tab = await createTabInTargetWindow(lichessUrl, targetWindowId);
+    if (normalizedColor === "black") {
+      await ensureBoardRenderedOrReloadOnce(tab?.id);
+    }
   }
 
   return { lichessUrl, method };
@@ -388,7 +576,12 @@ function shouldShowUsernamePopupForError(errorMessage) {
   );
 }
 
-async function openInputPopup(reason, errorMessage = "", username = "") {
+async function openInputPopup(
+  reason,
+  errorMessage = "",
+  username = "",
+  targetWindowId = null
+) {
   const params = new URLSearchParams();
   if (reason) {
     params.set("reason", reason);
@@ -398,6 +591,9 @@ async function openInputPopup(reason, errorMessage = "", username = "") {
   }
   if (username) {
     params.set("username", username);
+  }
+  if (normalizeWindowId(targetWindowId) !== null) {
+    params.set("targetWindowId", String(targetWindowId));
   }
 
   const url = chrome.runtime.getURL(`popup.html?${params.toString()}`);
@@ -409,10 +605,13 @@ async function openInputPopup(reason, errorMessage = "", username = "") {
   });
 }
 
-async function openChooserPopup(username) {
+async function openChooserPopup(username, targetWindowId = null) {
   const params = new URLSearchParams();
   if (username) {
     params.set("username", username);
+  }
+  if (normalizeWindowId(targetWindowId) !== null) {
+    params.set("targetWindowId", String(targetWindowId));
   }
 
   const url = chrome.runtime.getURL(`chooser.html?${params.toString()}`);
@@ -424,33 +623,34 @@ async function openChooserPopup(username) {
   });
 }
 
-async function handleToolbarClick() {
+async function handleToolbarClick(tab = null) {
+  const targetWindowId = normalizeWindowId(tab?.windowId);
   const { chessComUsername, manualSelectionEnabled } = await chrome.storage.local.get([
     "chessComUsername",
     "manualSelectionEnabled"
   ]);
   const username = normalizeUsername(chessComUsername);
   if (!username) {
-    await openInputPopup("missing_username");
+    await openInputPopup("missing_username", "", "", targetWindowId);
     return;
   }
 
   if (manualSelectionEnabled === true) {
-    await openChooserPopup(username);
+    await openChooserPopup(username, targetWindowId);
     return;
   }
 
   try {
-    await importLatestGameByUsername(username);
+    await importLatestGameByUsername(username, targetWindowId);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const reason = shouldShowUsernamePopupForError(message) ? "username_error" : "api_error";
-    await openInputPopup(reason, message, username);
+    await openInputPopup(reason, message, username, targetWindowId);
   }
 }
 
-chrome.action.onClicked.addListener(() => {
-  handleToolbarClick().catch(() => {
+chrome.action.onClicked.addListener((tab) => {
+  handleToolbarClick(tab).catch(() => {
     // Keep click handling resilient. Errors are already handled by opening a popup.
   });
 });
@@ -458,7 +658,16 @@ chrome.action.onClicked.addListener(() => {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "import-latest-game") {
     (async () => {
-      const result = await importLatestGameByUsername(message.username);
+      const senderWindowId = normalizeWindowId(_sender?.tab?.windowId);
+      const targetWindowId = normalizeWindowId(message.targetWindowId);
+      const resolvedTargetWindowId = await resolveTargetBrowserWindowId(
+        targetWindowId,
+        senderWindowId
+      );
+      const result = await importLatestGameByUsername(
+        message.username,
+        resolvedTargetWindowId
+      );
       sendResponse({
         ok: true,
         ...result
@@ -499,7 +708,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message?.type === "import-selected-game") {
     (async () => {
-      const result = await importSpecificGamePgn(message.pgn);
+      const senderWindowId = normalizeWindowId(_sender?.tab?.windowId);
+      const targetWindowId = normalizeWindowId(message.targetWindowId);
+      const resolvedTargetWindowId = await resolveTargetBrowserWindowId(
+        targetWindowId,
+        senderWindowId
+      );
+      const result = await importSpecificGamePgn(
+        message.pgn,
+        message.playerColor,
+        resolvedTargetWindowId
+      );
       sendResponse({
         ok: true,
         ...result

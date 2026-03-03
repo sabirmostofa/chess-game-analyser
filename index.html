@@ -195,9 +195,12 @@
           <ul class="list">
             <li>One-click latest game import from toolbar icon.</li>
             <li>Manual selection mode with last 10 recent games.</li>
+            <li>Manual mode toggle auto-saves in settings.</li>
             <li>Game list includes opponent, color, and result.</li>
             <li>Username validation against Chess.com in settings.</li>
+            <li>Black games open with black orientation on Lichess.</li>
             <li>Lichess import flow with fallback to compact PGN URL.</li>
+            <li>Imports open in the same window context when possible.</li>
           </ul>
         </aside>
       </section>
@@ -221,7 +224,7 @@
               Go to <code>chrome://extensions</code> -> this extension ->
               <strong>Extension options</strong>.
             </li>
-            <li>Enter your Chess.com username and save.</li>
+            <li>Enter your Chess.com username and click <strong>Save settings</strong>.</li>
             <li>Optional: enable manual selection mode.</li>
           </ol>
         </article>
@@ -245,6 +248,8 @@
           <ul class="list muted">
             <li>Only public Chess.com games can be imported.</li>
             <li>Uses Chess.com public API and Lichess web import flow.</li>
+            <li>White imports open at <code>/&lt;game-id&gt;</code>; black imports at <code>/&lt;game-id&gt;/black</code>.</li>
+            <li>If the Lichess board does not load correctly, refresh the page or press <code>F5</code>.</li>
             <li>Popup appears only if username is missing/invalid or API/import fails.</li>
           </ul>
         </article>

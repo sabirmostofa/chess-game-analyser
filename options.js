@@ -4,7 +4,7 @@ const saveBtn = document.getElementById("saveBtn");
 const manualSelectionInput = document.getElementById("manualSelectionEnabled");
 const statusEl = document.getElementById("status");
 const CHESS_COM_PLAYER_API = "https://api.chess.com/pub/player";
-const SAVE_BUTTON_TEXT = "Save username";
+const SAVE_BUTTON_TEXT = "Save settings";
 
 function setStatus(message, kind = "") {
   statusEl.textContent = message;
@@ -74,6 +74,17 @@ settingsForm.addEventListener("submit", (event) => {
   saveSettings().catch((error) => {
     setStatus(`Save failed: ${error.message}`, "error");
   });
+});
+
+manualSelectionInput.addEventListener("change", () => {
+  chrome.storage.local
+    .set({ manualSelectionEnabled: manualSelectionInput.checked })
+    .then(() => {
+      setStatus("Manual selection mode saved.", "ok");
+    })
+    .catch((error) => {
+      setStatus(`Save failed: ${error.message}`, "error");
+    });
 });
 
 loadSettings().catch((error) => {
