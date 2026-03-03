@@ -43,18 +43,20 @@ In the Web Store privacy section, declare:
   - `https://api.chess.com/*`
   - `https://lichess.org/*`
 
-If Web Store requires a privacy policy URL, publish `PRIVACY.md` on a public URL (for example GitHub Pages or a public gist) and provide that link.
+Use your hosted `privacy.html` URL as the privacy policy URL in Chrome Web Store.
 
 ## Build ZIP for upload
 
 Run from project root:
 
 ```bash
-cd /home/s/lichess-importer
-zip -r lichess-importer-webstore.zip . \
-  -x "*.git*" \
-  -x "store-assets/*" \
-  -x "*.DS_Store"
+./scripts/package-webstore.sh
+```
+
+On Windows:
+
+```bat
+scripts\package-webstore.bat
 ```
 
 Upload `lichess-importer-webstore.zip` in Chrome Web Store Developer Dashboard.

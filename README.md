@@ -16,7 +16,7 @@ Import Chess.com games to Lichess analysis in one click.
 1. Open Chrome and go to `chrome://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select `/home/s/lichess-importer`.
+4. Select this extension folder.
 
 ## Pin the extension
 
@@ -61,3 +61,6 @@ The username popup appears only when:
 - Extension icons: `icons/`
 - Privacy policy template: `PRIVACY.md`
 - Publish checklist: `WEBSTORE_CHECKLIST.md`
+- Web Store package scripts:
+  - `scripts/package-webstore.sh` (macOS/Linux)
+  - `scripts/package-webstore.bat` (Windows)

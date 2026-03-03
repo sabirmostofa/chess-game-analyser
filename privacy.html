@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy | Chess.com -> Lichess One-Click Import</title>
+    <meta
+      name="description"
+      content="Privacy policy for the Chess.com to Lichess One-Click Import Chrome extension."
+    />
+    <style>
+      :root {
+        --bg: #f4f6f5;
+        --card: #ffffff;
+        --text: #151918;
+        --muted: #4c5954;
+        --line: #d8e1dd;
+        --accent: #0f7a52;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "Nunito Sans", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, #eef6f2, var(--bg) 42%);
+        color: var(--text);
+        line-height: 1.55;
+      }
+
+      .wrap {
+        max-width: 860px;
+        margin: 28px auto;
+        padding: 0 16px 28px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 18px 40px -30px rgba(18, 31, 24, 0.36);
+      }
+
+      .kicker {
+        display: inline-block;
+        margin: 0 0 8px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #e9f5ef;
+        color: #14553a;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4.5vw, 38px);
+        line-height: 1.1;
+      }
+
+      .updated {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .intro {
+        margin: 18px 0 0;
+        font-size: 17px;
+        color: #24322d;
+      }
+
+      section {
+        margin-top: 22px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+      }
+
+      h2 {
+        margin: 0 0 10px;
+        font-size: 20px;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      ul {
+        margin: 8px 0 0 18px;
+        padding: 0;
+      }
+
+      li + li {
+        margin-top: 6px;
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          monospace;
+        background: #f1f4f2;
+        border: 1px solid #e2e9e5;
+        border-radius: 5px;
+        padding: 1px 5px;
+        font-size: 0.95em;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      footer {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .notice {
+        margin-top: 14px;
+        padding: 10px 12px;
+        border: 1px solid #f1d9b3;
+        border-radius: 10px;
+        background: #fff8ec;
+        color: #5e4727;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <article class="card">
+        <p class="kicker">Chrome Extension</p>
+        <h1>Privacy Policy</h1>
+        <p class="updated">Last updated: March 3, 2026</p>
+        <p class="intro">
+          This privacy policy applies to the
+          <strong>Chess.com -> Lichess One-Click Import</strong> extension.
+        </p>
+        <section>
+          <h2>Overview</h2>
+          <p>
+            The extension helps you import public Chess.com games into Lichess analysis. It operates
+            locally in your browser and only sends data needed to perform that function.
+          </p>
+        </section>
+
+        <section>
+          <h2>Information We Store Locally</h2>
+          <ul>
+            <li>
+              <code>chessComUsername</code> is stored locally in <code>chrome.storage.local</code>
+              so the extension can run in one click.
+            </li>
+            <li>
+              <code>manualSelectionEnabled</code> is stored locally in
+              <code>chrome.storage.local</code> to remember whether manual game picker mode is
+              enabled.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Information Processed In Memory</h2>
+          <ul>
+            <li>
+              When manual selection mode is used, the extension fetches your recent public
+              Chess.com games and displays up to 10 entries in memory for selection.
+            </li>
+            <li>
+              PGN data from the selected game is processed only to open that game on Lichess
+              analysis.
+            </li>
+            <li>
+              The recent-games list and selected PGN are not persisted by the extension beyond
+              normal browser/page runtime.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Network Requests and Third-Party Services</h2>
+          <p>The extension sends network requests only to:</p>
+          <ul>
+            <li>
+              <a href="https://api.chess.com/" target="_blank" rel="noopener noreferrer"
+                >https://api.chess.com/*</a
+              >
+              to fetch your public game archives and PGN.
+            </li>
+            <li>
+              <a href="https://lichess.org/" target="_blank" rel="noopener noreferrer"
+                >https://lichess.org/*</a
+              >
+              to import/open analysis for the selected game.
+            </li>
+          </ul>
+          <p style="margin-top: 8px">
+            Chess.com and Lichess operate as independent services under their own privacy policies
+            and terms.
+          </p>
+        </section>
+
+        <section>
+          <h2>Purpose and Legal Basis</h2>
+          <ul>
+            <li><strong>Purpose:</strong> provide game import and analysis-opening functionality.</li>
+            <li>
+              <strong>Legal basis (where applicable):</strong> user-requested service performance
+              and legitimate interest in operating the extension.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Data Sharing and Sale</h2>
+          <ul>
+            <li>No user data is sold.</li>
+            <li>
+              No user data is shared with third parties beyond the API requests required for core
+              functionality.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Retention</h2>
+          <ul>
+            <li>
+              Stored settings remain in <code>chrome.storage.local</code> until you change them or
+              remove the extension data.
+            </li>
+            <li>In-memory game lists/PGN are not retained after runtime ends.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Security</h2>
+          <p>
+            We use browser-provided storage and HTTPS requests. No system can be guaranteed 100%
+            secure, but reasonable measures are used to reduce risk.
+          </p>
+        </section>
+
+        <section>
+          <h2>International Data Transfers</h2>
+          <p>
+            API endpoints may be hosted in different countries. By using the extension, network
+            requests may involve cross-border data transfer via those services.
+          </p>
+        </section>
+
+        <section>
+          <h2>Remote Code</h2>
+          <p>The extension does not download and execute remote code.</p>
+        </section>
+
+        <section>
+          <h2>Changes to This Policy</h2>
+          <p>
+            We may update this policy from time to time. The "Last updated" date at the top indicates
+            the latest version.
+          </p>
+        </section>
+
+        <footer>
+          This page is provided for Chrome Web Store privacy disclosure.
+        </footer>
+      </article>
+    </main>
+  </body>
+</html>
