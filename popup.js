@@ -1,6 +1,8 @@
 const usernameInput = document.getElementById("username");
 const importBtn = document.getElementById("importBtn");
 const statusEl = document.getElementById("status");
+const settingsBtn = document.getElementById("settingsBtn");
+const query = new URLSearchParams(window.location.search);
 
 function setStatus(message, kind = "") {
   statusEl.textContent = message;
@@ -8,9 +10,34 @@ function setStatus(message, kind = "") {
 }
 
 async function loadSavedUsername() {
+  const providedUsername = query.get("username");
+  if (providedUsername) {
+    usernameInput.value = providedUsername;
+    return;
+  }
+
   const { chessComUsername } = await chrome.storage.local.get("chessComUsername");
   if (chessComUsername) {
     usernameInput.value = chessComUsername;
+  }
+}
+
+function applyLaunchReasonMessage() {
+  const reason = query.get("reason");
+  const error = query.get("error");
+
+  if (reason === "missing_username") {
+    setStatus("Set your Chess.com username, then click import.", "error");
+    return;
+  }
+
+  if (reason === "username_error") {
+    setStatus(error || "Username issue. Please verify and try again.", "error");
+    return;
+  }
+
+  if (reason === "api_error") {
+    setStatus(error || "API error. Please retry.", "error");
   }
 }
 
@@ -63,6 +90,10 @@ async function onImportClick() {
 }
 
 importBtn.addEventListener("click", onImportClick);
+settingsBtn.addEventListener("click", () => {
+  chrome.runtime.openOptionsPage();
+});
+applyLaunchReasonMessage();
 loadSavedUsername().catch((error) => {
   setStatus(`Could not load saved username: ${error.message}`, "error");
 });

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Extension Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="page">
+      <div class="eyebrow">Extension Settings</div>
+      <h1>Chess.com -> Lichess</h1>
+      <p class="hint">
+        Set your Chess.com username once. Then importing the latest game is a one-click action from
+        the extension icon.
+      </p>
+
+      <form id="settingsForm" class="panel">
+        <label for="username">Chess.com username</label>
+        <input id="username" type="text" autocomplete="off" placeholder="your_username" />
+        <p class="field-note">Whitespace will be removed automatically. Letter case is preserved.</p>
+
+        <label class="toggle">
+          <input id="manualSelectionEnabled" type="checkbox" />
+          <span>Manual selection mode (choose from last 10 games)</span>
+        </label>
+        <p class="field-note">Disabled by default. When enabled, clicking the extension icon shows game list first.</p>
+
+        <div class="actions">
+          <button id="saveBtn" type="submit">Save username</button>
+        </div>
+      </form>
+
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

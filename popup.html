@@ -9,12 +9,16 @@
   <body>
     <main class="card">
       <h1>Chess.com -> Lichess</h1>
+      <p class="hint">
+        Enter username only when prompted. Otherwise, click the extension icon for one-click import.
+      </p>
 
       <label for="username">Chess.com username</label>
       <input id="username" type="text" autocomplete="off" placeholder="your_username" />
 
       <button id="importBtn" type="button">Import latest game</button>
       <p id="status" role="status" aria-live="polite"></p>
+      <button id="settingsBtn" type="button" class="ghost">Open settings</button>
     </main>
     <script src="popup.js"></script>
   </body>

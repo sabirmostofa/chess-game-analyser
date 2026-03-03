@@ -1,6 +1,10 @@
 const CHESS_COM_API = "https://api.chess.com/pub/player";
 const LICHESS_PASTE_URL = "https://lichess.org/paste";
 const MAX_DIRECT_ANALYSIS_URL_LENGTH = 2200;
+const POPUP_WIDTH = 380;
+const POPUP_HEIGHT = 420;
+const CHOOSER_WIDTH = 420;
+const CHOOSER_HEIGHT = 620;
 
 async function fetchJson(url) {
   const response = await fetch(url);
@@ -8,6 +12,51 @@ async function fetchJson(url) {
     throw new Error(`Request failed (${response.status}) for ${url}`);
   }
   return response.json();
+}
+
+function normalizeUsername(value) {
+  return String(value || "").replace(/\s+/g, "");
+}
+
+function normalizeForCompare(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function summarizeGameForChooser(game, username) {
+  const normalizedUser = normalizeForCompare(username);
+  const whiteUser = normalizeForCompare(game?.white?.username);
+  const blackUser = normalizeForCompare(game?.black?.username);
+
+  const isWhite = normalizedUser === whiteUser;
+  const isBlack = normalizedUser === blackUser;
+  const color = isWhite ? "White" : isBlack ? "Black" : "Unknown";
+  const opponent = isWhite ? game?.black?.username : isBlack ? game?.white?.username : "Unknown";
+
+  const resultRaw = isWhite ? game?.white?.result : isBlack ? game?.black?.result : "";
+  let outcome = "Draw";
+  if (resultRaw === "win") {
+    outcome = "Win";
+  } else if (
+    ["agreed", "stalemate", "repetition", "insufficient", "50move", "timevsinsufficient"].includes(
+      String(resultRaw)
+    )
+  ) {
+    outcome = "Draw";
+  } else if (resultRaw) {
+    outcome = "Loss";
+  }
+
+  return {
+    id: String(game.uuid || game.url || `${game.end_time}-${Math.random()}`),
+    opponent: opponent || "Unknown",
+    color,
+    outcome,
+    endTime: Number(game.end_time || game.start_time || 0),
+    gameUrl: game.url || "",
+    timeClass: game.time_class || "",
+    rated: Boolean(game.rated),
+    pgn: game.pgn
+  };
 }
 
 async function getMostRecentGame(username) {
@@ -47,6 +96,52 @@ async function getMostRecentGame(username) {
   throw new Error("No games found in recent archives.");
 }
 
+function compareByLatestTimeDesc(a, b) {
+  const aTime = Number(a.end_time || a.start_time || 0);
+  const bTime = Number(b.end_time || b.start_time || 0);
+  return bTime - aTime;
+}
+
+async function getRecentGames(username, limit = 10) {
+  const archivesUrl = `${CHESS_COM_API}/${encodeURIComponent(username)}/games/archives`;
+  const archivesPayload = await fetchJson(archivesUrl);
+  const archives = archivesPayload.archives || [];
+
+  if (!archives.length) {
+    throw new Error("No game archives found for this Chess.com username.");
+  }
+
+  const seen = new Set();
+  const collected = [];
+
+  for (let i = archives.length - 1; i >= 0 && collected.length < limit; i -= 1) {
+    const archivePayload = await fetchJson(archives[i]);
+    const games = (archivePayload.games || []).slice().sort(compareByLatestTimeDesc);
+
+    for (const game of games) {
+      const key = String(game.uuid || game.url || `${game.end_time}-${game.pgn?.length || 0}`);
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      if (!game.pgn) {
+        continue;
+      }
+
+      collected.push(game);
+      if (collected.length >= limit) {
+        break;
+      }
+    }
+  }
+
+  if (!collected.length) {
+    throw new Error("No games found in recent archives.");
+  }
+
+  return collected.sort(compareByLatestTimeDesc).slice(0, limit);
+}
+
 function extractImportedGameId(url) {
   if (!url) {
     return null;
@@ -72,7 +167,7 @@ function extractImportedGameId(url) {
 }
 
 function buildAnalysisUrl(gameId) {
-  return `https://lichess.org/analysis/${encodeURIComponent(gameId)}`;
+  return `https://lichess.org/${encodeURIComponent(gameId)}#analysis`;
 }
 
 function buildCompactAnalysisPgn(pgn) {
@@ -159,7 +254,7 @@ async function submitPgnViaPasteForm(pgn) {
 
   await chrome.scripting.executeScript({
     target: { tabId },
-    func: (pgnText) => {
+    func: async (pgnText) => {
       const form = document.querySelector('form[action="/import"]');
       const textarea = document.querySelector('textarea[name="pgn"]');
       if (!form || !textarea) {
@@ -225,50 +320,199 @@ async function submitPgnViaPasteForm(pgn) {
   return analysisUrl;
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== "import-latest-game") {
-    return false;
+async function importLatestGameByUsername(rawUsername) {
+  const username = normalizeUsername(rawUsername);
+  if (!username) {
+    throw new Error("Enter your Chess.com username.");
   }
 
-  (async () => {
-    const username = String(message.username || "").replace(/\s+/g, "");
-    if (!username) {
-      throw new Error("Enter your Chess.com username.");
+  const latestGame = await getMostRecentGame(username);
+  await chrome.storage.local.set({ chessComUsername: username });
+
+  const directUrl = tryBuildDirectAnalysisUrl(latestGame.pgn);
+  let lichessUrl;
+  let method;
+  try {
+    lichessUrl = await submitPgnViaPasteForm(latestGame.pgn);
+    method = "paste-form-import";
+  } catch (pasteError) {
+    if (!directUrl) {
+      throw pasteError;
     }
 
-    const latestGame = await getMostRecentGame(username);
-    await chrome.storage.local.set({ chessComUsername: username });
+    lichessUrl = directUrl;
+    method = "direct-analysis-pgn";
+    await chrome.tabs.create({ url: lichessUrl });
+  }
 
-    const directUrl = tryBuildDirectAnalysisUrl(latestGame.pgn);
-    let lichessUrl;
-    let method;
-    try {
-      lichessUrl = await submitPgnViaPasteForm(latestGame.pgn);
-      method = "paste-form-import";
-    } catch (pasteError) {
-      if (!directUrl) {
-        throw pasteError;
+  return {
+    username,
+    endTime: latestGame.end_time || null,
+    sourceGameUrl: latestGame.url || null,
+    lichessUrl,
+    method
+  };
+}
+
+async function importSpecificGamePgn(pgn) {
+  if (!pgn) {
+    throw new Error("Selected game has no PGN.");
+  }
+
+  const directUrl = tryBuildDirectAnalysisUrl(pgn);
+  let lichessUrl;
+  let method;
+  try {
+    lichessUrl = await submitPgnViaPasteForm(pgn);
+    method = "paste-form-import";
+  } catch (pasteError) {
+    if (!directUrl) {
+      throw pasteError;
+    }
+
+    lichessUrl = directUrl;
+    method = "direct-analysis-pgn";
+    await chrome.tabs.create({ url: lichessUrl });
+  }
+
+  return { lichessUrl, method };
+}
+
+function shouldShowUsernamePopupForError(errorMessage) {
+  const msg = String(errorMessage || "").toLowerCase();
+  return (
+    msg.includes("enter your chess.com username") ||
+    msg.includes("no game archives found") ||
+    msg.includes("request failed (404)") ||
+    msg.includes("request failed (410)")
+  );
+}
+
+async function openInputPopup(reason, errorMessage = "", username = "") {
+  const params = new URLSearchParams();
+  if (reason) {
+    params.set("reason", reason);
+  }
+  if (errorMessage) {
+    params.set("error", errorMessage);
+  }
+  if (username) {
+    params.set("username", username);
+  }
+
+  const url = chrome.runtime.getURL(`popup.html?${params.toString()}`);
+  await chrome.windows.create({
+    url,
+    type: "popup",
+    width: POPUP_WIDTH,
+    height: POPUP_HEIGHT
+  });
+}
+
+async function openChooserPopup(username) {
+  const params = new URLSearchParams();
+  if (username) {
+    params.set("username", username);
+  }
+
+  const url = chrome.runtime.getURL(`chooser.html?${params.toString()}`);
+  await chrome.windows.create({
+    url,
+    type: "popup",
+    width: CHOOSER_WIDTH,
+    height: CHOOSER_HEIGHT
+  });
+}
+
+async function handleToolbarClick() {
+  const { chessComUsername, manualSelectionEnabled } = await chrome.storage.local.get([
+    "chessComUsername",
+    "manualSelectionEnabled"
+  ]);
+  const username = normalizeUsername(chessComUsername);
+  if (!username) {
+    await openInputPopup("missing_username");
+    return;
+  }
+
+  if (manualSelectionEnabled === true) {
+    await openChooserPopup(username);
+    return;
+  }
+
+  try {
+    await importLatestGameByUsername(username);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const reason = shouldShowUsernamePopupForError(message) ? "username_error" : "api_error";
+    await openInputPopup(reason, message, username);
+  }
+}
+
+chrome.action.onClicked.addListener(() => {
+  handleToolbarClick().catch(() => {
+    // Keep click handling resilient. Errors are already handled by opening a popup.
+  });
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "import-latest-game") {
+    (async () => {
+      const result = await importLatestGameByUsername(message.username);
+      sendResponse({
+        ok: true,
+        ...result
+      });
+    })().catch((error) => {
+      sendResponse({
+        ok: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    });
+
+    return true;
+  }
+
+  if (message?.type === "get-recent-games") {
+    (async () => {
+      const username = normalizeUsername(message.username);
+      if (!username) {
+        throw new Error("Enter your Chess.com username.");
       }
 
-      lichessUrl = directUrl;
-      method = "direct-analysis-pgn";
-      await chrome.tabs.create({ url: lichessUrl });
-    }
-
-    sendResponse({
-      ok: true,
-      username,
-      endTime: latestGame.end_time || null,
-      sourceGameUrl: latestGame.url || null,
-      lichessUrl,
-      method
+      const games = await getRecentGames(username, 10);
+      const summaries = games.map((game) => summarizeGameForChooser(game, username));
+      sendResponse({
+        ok: true,
+        username,
+        games: summaries
+      });
+    })().catch((error) => {
+      sendResponse({
+        ok: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
     });
-  })().catch((error) => {
-    sendResponse({
-      ok: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  });
 
-  return true;
+    return true;
+  }
+
+  if (message?.type === "import-selected-game") {
+    (async () => {
+      const result = await importSpecificGamePgn(message.pgn);
+      sendResponse({
+        ok: true,
+        ...result
+      });
+    })().catch((error) => {
+      sendResponse({
+        ok: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    });
+
+    return true;
+  }
+
+  return false;
 });

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Select Game</title>
+    <link rel="stylesheet" href="chooser.css" />
+  </head>
+  <body>
+    <main class="page">
+      <h1>Choose a Game</h1>
+      <p id="subtitle" class="subtitle">Last 10 games from Chess.com</p>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <div id="games" class="games"></div>
+
+      <div class="actions">
+        <button id="settingsBtn" type="button" class="ghost">Open settings</button>
+      </div>
+    </main>
+
+    <script src="chooser.js"></script>
+  </body>
+</html>
